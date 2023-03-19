@@ -355,10 +355,10 @@ public:
 		float b = tracker.mDeviceToAbsoluteTracking.m[1][0];
 		float c = (tracker.mDeviceToAbsoluteTracking.m[2][0]);
 
-		if (cnt == 100) {
-			
-			DriverLog("%d - HMD: %f %f %f / %f %f %f\n", ControllerIndex, a, b, c);
-		}
+		//if (cnt == 100) {
+		//	
+		//	DriverLog("%d - HMD: %f %f %f / %f %f %f\n", ControllerIndex, a, b, c);
+		//}
 
 		if (center[0] == true || center[1] == true) {
 			Center();
@@ -415,14 +415,14 @@ public:
 			pose.qDriverFromHeadRotation = r;
 
 			//Velocity
-			pose.vecVelocity[0] = (pose.vecPosition[0] - SecondCtrlLastPos[0]) * 1000 / max((int)deltaTime.count(), 1);
-			pose.vecVelocity[1] = (pose.vecPosition[1] - SecondCtrlLastPos[1]) * 1000 / max((int)deltaTime.count(), 1);
-			pose.vecVelocity[2] = (pose.vecPosition[2] - SecondCtrlLastPos[2]) * 1000 / max((int)deltaTime.count(), 1);
-			SecondCtrlLastPos[0] = pose.vecPosition[0];
-			SecondCtrlLastPos[1] = pose.vecPosition[1];
-			SecondCtrlLastPos[2] = pose.vecPosition[2];
+			//pose.vecVelocity[0] = (pose.vecPosition[0] - SecondCtrlLastPos[0]) * 1000 / max((int)deltaTime.count(), 1);
+			//pose.vecVelocity[1] = (pose.vecPosition[1] - SecondCtrlLastPos[1]) * 1000 / max((int)deltaTime.count(), 1);
+			//pose.vecVelocity[2] = (pose.vecPosition[2] - SecondCtrlLastPos[2]) * 1000 / max((int)deltaTime.count(), 1);
+			//SecondCtrlLastPos[0] = pose.vecPosition[0];
+			//SecondCtrlLastPos[1] = pose.vecPosition[1];
+			//SecondCtrlLastPos[2] = pose.vecPosition[2];
 
-			pose.vecPosition[0] = (c ) / 4 + MyHMD.X / 4;
+			pose.vecPosition[0] = (c ) / 4 + MyHMD.X;
 			pose.vecPosition[1] = MyCtrl[1].Y + MyHMD.Z;
 			pose.vecPosition[2] = (a ) * -1 / 4 + MyHMD.Y;// +0.25;
 
@@ -571,7 +571,7 @@ public:
 					break;
 				case 2:
 					// TODO MOVE HMD
-					DriverLog("%d %d - RghStX: %d\n", ControllerIndex, index, turn);
+					//DriverLog("%d %d - RghStX: %d\n", ControllerIndex, index, turn);
 					
 					switch (turn) {
 					case 0:
@@ -1548,6 +1548,52 @@ public:
 		return coordinates;
 	}
 
+	void Update()
+	{
+		DriverPose_t pose = { 0 };
+
+		float delta_seconds = deltaTime.count() / 1000.0f;
+		HmdQuaternion_t rot = HmdQuaternion_Init(1, 0, 0, 0);
+
+		// Get orientation
+		rot.y += (1.0f * (GetAsyncKeyState(VK_RIGHT) == 0) - 1.0f * (GetAsyncKeyState(VK_LEFT) == 0)) * delta_seconds;
+		rot.x += (-1.0f * (GetAsyncKeyState(VK_UP) == 0) + 1.0f * (GetAsyncKeyState(VK_DOWN) == 0)) * delta_seconds;
+		rot.x = std::fmax(rot.x, -3.14159f / 2);
+		rot.x = std::fmin(rot.x, 3.14159f / 2);
+
+		linalg::vec<float, 4> y_quat{ 0, std::sinf(rot.y / 2), 0, std::cosf(rot.y / 2) };
+
+		linalg::vec<float, 4> x_quat{ std::sinf(rot.x / 2), 0, 0, std::cosf(rot.x / 2) };
+
+		linalg::vec<float, 4> pose_rot = linalg::qmul(y_quat, x_quat);
+
+		pose.qRotation.w = (float)pose_rot.w;
+		pose.qRotation.x = (float)pose_rot.x;
+		pose.qRotation.y = (float)pose_rot.y;
+		pose.qRotation.z = (float)pose_rot.z;
+		// TODO pose.qRotation = EulerAngleToQuaternion(FreeTrack->Roll, -FreeTrack->Yaw + DegToRad(turn), FreeTrack->Pitch);
+		// Update position based on rotation
+		linalg::vec<float, 3> forward_vec{ -1.0f * (GetAsyncKeyState(0x44) == 0) + 1.0f * (GetAsyncKeyState(0x41) == 0), 0, 0 };
+		linalg::vec<float, 3> right_vec{ 0, 0, 1.0f * (GetAsyncKeyState(0x57) == 0) - 1.0f * (GetAsyncKeyState(0x53) == 0) };
+		linalg::vec<float, 3> final_dir = forward_vec + right_vec;
+		if (linalg::length(final_dir) > 0.01) {
+			final_dir = linalg::normalize(final_dir) * (float)delta_seconds;
+			final_dir = linalg::qrot(pose_rot, final_dir);
+			this->pos_x_ += final_dir.x;
+			this->pos_y_ += final_dir.y;
+			this->pos_z_ += final_dir.z;
+		}
+
+		// TODO 
+		pose.vecPosition[0] = (float)this->pos_x_;
+		pose.vecPosition[1] = (float)this->pos_y_;
+		pose.vecPosition[2] = (float)this->pos_z_;
+
+		// Post pose
+		//GetDriver()->GetDriverHost()->TrackedDevicePoseUpdated(this->device_index_, pose, sizeof(vr::DriverPose_t));
+		//this->last_pose_ = pose;
+	}
+
 	virtual DriverPose_t GetPose()
 	{
 		DriverPose_t pose = { 0 };
@@ -1762,666 +1808,3 @@ HMD_DLL_EXPORT void* HmdDriverFactory(const char* pInterfaceName, int* pReturnCo
 
 	return NULL;
 }
-
-/*
-void ProcessHandlesOld(int32_t index) {
-
-	// Sticks
-
-	if (float LftStX = gamepad.LeftStick_X())
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].Pitch = MyCtrl[Active].Pitch - LftStX *0.5;
-			}
-		}
-		else {
-			if (act[0] == 0) {
-				MyCtrl[0].Pitch = MyCtrl[0].Pitch - LftStX *0.5;
-			}
-			else {
-				vr::VRDriverInput()->UpdateScalarComponent(leftJoystickXInputHandle, LftStX, 0);
-			}
-		}
-	}
-	else {
-		//vr::VRDriverInput()->UpdateScalarComponent:mmµ                                                                                                                                               µ(leftJoystickXInputHandle, 0.0, 0);
-
-	}
-
-	if (float LftStY = gamepad.LeftStick_Y())
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].Roll = MyCtrl[Active].Roll + LftStY * 0.5;
-			}
-		}
-		else {
-			if (act[0] == 0) {
-				MyCtrl[0].Roll = MyCtrl[0].Roll + LftStY * 0.5;
-			}
-			else {
-				vr::VRDriverInput()->UpdateScalarComponent(leftJoystickYInputHandle, LftStY, 0);
-			}
-		}
-	}
-	else {
-		//vr::VRDriverInput()->UpdateScalarComponent(leftJoystickYInputHandle, 0.0, 0);
-	}
-
-	if (float RghStX = gamepad.RightStick_X())
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				if (Active == 1) {
-					vr::VRDriverInput()->UpdateScalarComponent(rightJoystickXInputHandle, RghStX, 0);
-				}
-				else {
-					vr::VRDriverInput()->UpdateScalarComponent(leftJoystickXInputHandle, RghStX, 0);
-				}
-			}
-		}
-		else {
-			if (act[1] == 0) {
-				MyCtrl[1].Pitch = MyCtrl[1].Pitch - RghStX * 0.5;
-			}
-			else {
-				vr::VRDriverInput()->UpdateScalarComponent(rightJoystickXInputHandle, RghStX, 0);
-			}
-		}
-	}
-	else {
-		if (index == Active) {
-			if (Active == 1) {
-				vr::VRDriverInput()->UpdateScalarComponent(rightJoystickXInputHandle, 0, 0);
-			}
-			else {
-				vr::VRDriverInput()->UpdateScalarComponent(leftJoystickXInputHandle, 0, 0);
-			}
-		}
-	}
-
-	if (float RghStY = gamepad.RightStick_Y())
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				if (Active == 1) {
-					vr::VRDriverInput()->UpdateScalarComponent(rightJoystickYInputHandle, RghStY, 0);
-				}
-				else {
-					vr::VRDriverInput()->UpdateScalarComponent(leftJoystickYInputHandle, RghStY, 0);
-				}
-			}
-		}
-		else {
-			if (act[1] == 0) {
-				MyCtrl[1].Roll = MyCtrl[1].Roll + RghStY * 0.5;
-			}
-			else {
-				vr::VRDriverInput()->UpdateScalarComponent(rightJoystickYInputHandle, RghStY, 0);
-			}
-		}
-	}
-	else {
-		if (index == Active) {
-			if (Active == 1) {
-				vr::VRDriverInput()->UpdateScalarComponent(rightJoystickYInputHandle, 0, 0);
-			}
-			else {
-				vr::VRDriverInput()->UpdateScalarComponent(leftJoystickYInputHandle, 0, 0);
-			}
-		}
-	}
-
-	// Dpad
-
-	if (gamepad.GetButtonPressed(xButtons.DPad_Left))
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].X = MyCtrl[Active].X - 0.005;
-			}
-		}
-		else {
-			MyCtrl[0].X = MyCtrl[0].X - 0.005;
-			MyCtrl[1].X = MyCtrl[1].X - 0.005;
-		}
-
-	}
-
-	if (gamepad.GetButtonPressed(xButtons.DPad_Right))
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].X = MyCtrl[Active].X + 0.005;
-			}
-		}
-		else {
-			MyCtrl[0].X = MyCtrl[0].X + 0.005;
-			MyCtrl[1].X = MyCtrl[1].X + 0.005;
-		}
-	}
-
-	if (gamepad.GetButtonPressed(xButtons.DPad_Up))
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].Z = MyCtrl[Active].Z - 0.005;
-			}
-		}
-		else {
-			MyCtrl[0].Z = MyCtrl[0].Z - 0.005;
-			MyCtrl[1].Z = MyCtrl[1].Z - 0.005;
-		}
-	}
-
-	if (gamepad.GetButtonPressed(xButtons.DPad_Down))
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].Z = MyCtrl[Active].Z + 0.005;
-			}
-		}
-		else {
-			MyCtrl[0].Z = MyCtrl[0].Z + 0.005;
-			MyCtrl[1].Z = MyCtrl[1].Z + 0.005;
-		}
-
-	}
-
-	// Bummers
-
-	if (gamepad.GetButtonPressed(xButtons.L_Shoulder))
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].Y = MyCtrl[Active].Y + 0.002;
-			}
-		}
-		else {
-			MyCtrl[0].Y = MyCtrl[0].Y + 0.002;
-			MyCtrl[1].Y = MyCtrl[1].Y + 0.002;
-		}
-
-	}
-
-	if (gamepad.GetButtonPressed(xButtons.R_Shoulder))
-	{
-		if (swap == 0) {
-			if (index == Active) {
-				MyCtrl[Active].Y = MyCtrl[Active].Y - 0.002;
-			}
-		}
-		else {
-			MyCtrl[0].Y = MyCtrl[0].Y - 0.002;
-			MyCtrl[1].Y = MyCtrl[1].Y - 0.002;
-		}
-
-	}
-
-	if (gamepad.GetButtonPressed(xButtons.Back))
-	{
-		if (index == Active) {
-			if (swap == 0) {
-				center[Active] = true;
-			}
-			else {
-				center[0] = true;
-				center[1] = true;
-			}
-		}
-	}
-
-	// Singles
-
-	if (index == Active) {
-
-		// Triggers
-
-		if (float LftT = gamepad.LeftTrigger())
-		{
-			if (LftT > 0.6) {
-				vr::VRDriverInput()->UpdateScalarComponent(TriggerInputHandle[Active], LftT, 0);
-			}
-			else {
-				vr::VRDriverInput()->UpdateScalarComponent(TriggerInputHandle[Active], 0.0, 0);
-			}
-		}
-
-		if (float RghT = gamepad.RightTrigger())
-		{
-			if (RghT > 0.6) {
-				if (swap == 0 && check == 0) {
-					DriverLog("swap true");
-					swap = 1;
-					check = 1;
-				}
-				if (swap == 1 && check == 0) {
-					DriverLog("swap false");
-					swap = 0;
-					check = 1;
-				}
-			}
-			else {
-				check = 0;
-			}
-		}
-		else {
-			if (check == 1) {
-				swap = 0;
-			}
-		}
-
-		// Buttons
-
-		if (gamepad.GetButtonPressed(xButtons.A))
-		{
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compA, 1, 0);
-		}
-		else {
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compA, 0, 0);
-		}
-
-		if (gamepad.GetButtonPressed(xButtons.B))
-		{
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compB, 1, 0);
-		}
-		else {
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compB, 0, 0);
-		}
-
-		if (gamepad.GetButtonPressed(xButtons.Y))
-		{
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compY, 1, 0);
-		}
-		else {
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compY, 0, 0);
-		}
-
-		if (gamepad.GetButtonPressed(xButtons.X))
-		{
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compX, 1, 0);
-		}
-		else {
-			vr::VRDriverInput()->UpdateBooleanComponent(m_compX, 0, 0);
-		}
-
-		// Start/select
-
-		if (gamepad.GetButtonPressed(xButtons.Start))
-		{
-			vr::VRDriverInput()->UpdateBooleanComponent(m_start, 1, 0);
-		}
-		else {
-			vr::VRDriverInput()->UpdateBooleanComponent(m_start, 0, 0);
-		}
-
-		// Sticks click
-
-		if (gamepad.GetButtonPressed(xButtons.L_Thumbstick))
-		{
-			if (ctrl == true && swap == 0) {
-				Active = 0;
-				DriverLog("%d - ctrl\n", ControllerIndex);
-				ctrl = false;
-			}
-			if (chck[0] == 0 && swap == 1) {
-				switch (act[0])
-				{
-				case 0:
-					act[0] = 1;
-					break;
-				case 1:
-					act[0] = 0;
-					break;
-				}
-				chck[0] = 1;
-			}
-			else {
-				chck[0] = 1;
-			}
-
-		}
-		else {
-			if (chck[0] == 1 && swap == 1) {
-				chck[0] = 0;
-			}
-		}
-
-		if (gamepad.GetButtonPressed(xButtons.R_Thumbstick))
-		{
-			if (ctrl == false && swap == 0) {
-				Active = 1;
-				DriverLog("%d - ctrl\n", ControllerIndex);
-				ctrl = true;
-			}
-			if (chck[1] == 0 && swap == 1) {
-				switch (act[1])
-				{
-				case 0:
-					act[1] = 1;
-					break;
-				case 1:
-					act[1] = 0;
-					break;
-				}
-				chck[1] = 1;
-			}
-			else {
-				chck[1] = 1;
-			}
-
-		}
-		else {
-			if (chck[1] == 1 && swap == 1) {
-				chck[1] = 0;
-			}
-		}
-	}
-}
-*/
-
-/*
-void GetHMDData(__out THMD* HMD)
-{
-	HMD->X = 0;
-	HMD->Y = 0;
-	HMD->Z = 0;
-
-	HMD->Yaw = 0;
-	HMD->Pitch = 0;
-	HMD->Roll = 0;
-}
-
-inline vr::HmdQuaternion_t EulerAngleToQuaternion(double Yaw, double Pitch, double Roll)
-{
-	vr::HmdQuaternion_t q;
-	// Abbreviations for the various angular functions
-	double cy = cos(Yaw * 0.5);
-	double sy = sin(Yaw * 0.5);
-	double cp = cos(Pitch * 0.5);
-	double sp = sin(Pitch * 0.5);
-	double cr = cos(Roll * 0.5);
-	double sr = sin(Roll * 0.5);
-
-	q.w = cr * cp * cy + sr * sp * sy;
-	q.x = sr * cp * cy - cr * sp * sy;
-	q.y = cr * sp * cy + sr * cp * sy;
-	q.z = cr * cp * sy - sr * sp * cy;
-
-	return q;
-}
-
-
-// keys for use with the settings API
-static const char* const k_pch_Sample_Section = "driver_gpad";
-static const char* const k_pch_Sample_SerialNumber_String = "serialNumber";
-static const char* const k_pch_Sample_ModelNumber_String = "modelNumber";
-static const char* const k_pch_Sample_WindowX_Int32 = "windowX";
-static const char* const k_pch_Sample_WindowY_Int32 = "windowY";
-static const char* const k_pch_Sample_WindowWidth_Int32 = "windowWidth";
-static const char* const k_pch_Sample_WindowHeight_Int32 = "windowHeight";
-static const char* const k_pch_Sample_RenderWidth_Int32 = "renderWidth";
-static const char* const k_pch_Sample_RenderHeight_Int32 = "renderHeight";
-static const char* const k_pch_Sample_SecondsFromVsyncToPhotons_Float = "secondsFromVsyncToPhotons";
-static const char* const k_pch_Sample_DisplayFrequency_Float = "displayFrequency";
-
-class CGPadDeviceDriver : public vr::ITrackedDeviceServerDriver, public vr::IVRDisplayComponent
-{
-public:
-	CGPadDeviceDriver()
-	{
-		m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
-		m_ulPropertyContainer = vr::k_ulInvalidPropertyContainer;
-
-		DriverLog( "Using settings values\n" );
-		m_flIPD = vr::VRSettings()->GetFloat( k_pch_SteamVR_Section, k_pch_SteamVR_IPD_Float );
-
-		char buf[1024];
-		//vr::VRSettings()->GetString( k_pch_Sample_Section, k_pch_Sample_SerialNumber_String, buf, sizeof( buf ) );
-		//m_sSerialNumber = buf;
-
-		vr::VRSettings()->GetString( k_pch_Sample_Section, k_pch_Sample_ModelNumber_String, buf, sizeof( buf ) );
-		m_sModelNumber = buf;
-
-		m_nWindowX = vr::VRSettings()->GetInt32( k_pch_Sample_Section, k_pch_Sample_WindowX_Int32 );
-		m_nWindowY = vr::VRSettings()->GetInt32( k_pch_Sample_Section, k_pch_Sample_WindowY_Int32 );
-		m_nWindowWidth = vr::VRSettings()->GetInt32( k_pch_Sample_Section, k_pch_Sample_WindowWidth_Int32 );
-		m_nWindowHeight = vr::VRSettings()->GetInt32( k_pch_Sample_Section, k_pch_Sample_WindowHeight_Int32 );
-		m_nRenderWidth = vr::VRSettings()->GetInt32( k_pch_Sample_Section, k_pch_Sample_RenderWidth_Int32 );
-		m_nRenderHeight = vr::VRSettings()->GetInt32( k_pch_Sample_Section, k_pch_Sample_RenderHeight_Int32 );
-		m_flSecondsFromVsyncToPhotons = vr::VRSettings()->GetFloat( k_pch_Sample_Section, k_pch_Sample_SecondsFromVsyncToPhotons_Float );
-		m_flDisplayFrequency = vr::VRSettings()->GetFloat( k_pch_Sample_Section, k_pch_Sample_DisplayFrequency_Float );
-
-		//DriverLog( "driver_null: Serial Number: %s\n", m_sSerialNumber.c_str() );
-		DriverLog( "driver_null: Model Number: %s\n", m_sModelNumber.c_str() );
-		DriverLog( "driver_null: Window: %d %d %d %d\n", m_nWindowX, m_nWindowY, m_nWindowWidth, m_nWindowHeight );
-		DriverLog( "driver_null: Render Target: %d %d\n", m_nRenderWidth, m_nRenderHeight );
-		DriverLog( "driver_null: Seconds from Vsync to Photons: %f\n", m_flSecondsFromVsyncToPhotons );
-		DriverLog( "driver_null: Display Frequency: %f\n", m_flDisplayFrequency );
-		DriverLog( "driver_null: IPD: %f\n", m_flIPD );
-
-	}
-
-	virtual ~CGPadDeviceDriver()
-	{
-	}
-
-
-	virtual EVRInitError Activate(vr::TrackedDeviceIndex_t unObjectId)
-	{
-		m_unObjectId = unObjectId;
-		m_ulPropertyContainer = vr::VRProperties()->TrackedDeviceToPropertyContainer(m_unObjectId);
-
-
-		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_ModelNumber_String, m_sModelNumber.c_str());
-		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_RenderModelName_String, m_sModelNumber.c_str());
-		vr::VRProperties()->SetFloatProperty(m_ulPropertyContainer, Prop_UserIpdMeters_Float, m_flIPD);
-		vr::VRProperties()->SetFloatProperty(m_ulPropertyContainer, Prop_UserHeadToEyeDepthMeters_Float, 0.f);
-		vr::VRProperties()->SetFloatProperty(m_ulPropertyContainer, Prop_DisplayFrequency_Float, m_flDisplayFrequency);
-		vr::VRProperties()->SetFloatProperty(m_ulPropertyContainer, Prop_SecondsFromVsyncToPhotons_Float, m_flSecondsFromVsyncToPhotons);
-
-		// return a constant that's not 0 (invalid) or 1 (reserved for Oculus)
-		vr::VRProperties()->SetUint64Property(m_ulPropertyContainer, Prop_CurrentUniverseId_Uint64, 2);
-
-		// avoid "not fullscreen" warnings from vrmonitor
-		vr::VRProperties()->SetBoolProperty(m_ulPropertyContainer, Prop_IsOnDesktop_Bool, false);
-
-		// Icons can be configured in code or automatically configured by an external file "drivername\resources\driver.vrresources".
-		// Icon properties NOT configured in code (post Activate) are then auto-configured by the optional presence of a driver's "drivername\resources\driver.vrresources".
-		// In this manner a driver can configure their icons in a flexible data driven fashion by using an external file.
-		//
-		// The structure of the driver.vrresources file allows a driver to specialize their icons based on their HW.
-		// Keys matching the value in "Prop_ModelNumber_String" are considered first, since the driver may have model specific icons.
-		// An absence of a matching "Prop_ModelNumber_String" then considers the ETrackedDeviceClass ("HMD", "Controller", "GenericTracker", "TrackingReference")
-		// since the driver may have specialized icons based on those device class names.
-		//
-		// An absence of either then falls back to the "system.vrresources" where generic device class icons are then supplied.
-		//
-		// Please refer to "bin\drivers\sample\resources\driver.vrresources" which contains this sample configuration.
-		//
-		// "Alias" is a reserved key and specifies chaining to another json block.
-		//
-		// In this sample configuration file (overly complex FOR EXAMPLE PURPOSES ONLY)....
-		//
-		// "Model-v2.0" chains through the alias to "Model-v1.0" which chains through the alias to "Model-v Defaults".
-		//
-		// Keys NOT found in "Model-v2.0" would then chase through the "Alias" to be resolved in "Model-v1.0" and either resolve their or continue through the alias.
-		// Thus "Prop_NamedIconPathDeviceAlertLow_String" in each model's block represent a specialization specific for that "model".
-		// Keys in "Model-v Defaults" are an example of mapping to the same states, and here all map to "Prop_NamedIconPathDeviceOff_String".
-		//
-		bool bSetupIconUsingExternalResourceFile = true;
-		if (!bSetupIconUsingExternalResourceFile)
-		{
-			// Setup properties directly in code.
-			// Path values are of the form {drivername}\icons\some_icon_filename.png
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceOff_String, "{sample}/icons/headset_sample_status_off.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceSearching_String, "{sample}/icons/headset_sample_status_searching.gif");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceSearchingAlert_String, "{sample}/icons/headset_sample_status_searching_alert.gif");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceReady_String, "{sample}/icons/headset_sample_status_ready.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceReadyAlert_String, "{sample}/icons/headset_sample_status_ready_alert.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceNotReady_String, "{sample}/icons/headset_sample_status_error.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceStandby_String, "{sample}/icons/headset_sample_status_standby.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceAlertLow_String, "{sample}/icons/headset_sample_status_ready_low.png");
-		}
-
-		return VRInitError_None;
-	}
-
-	virtual void Deactivate()
-	{
-		m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
-	}
-
-	virtual void EnterStandby()
-	{
-	}
-
-	void* GetComponent(const char* pchComponentNameAndVersion)
-	{
-		if (!_stricmp(pchComponentNameAndVersion, vr::IVRDisplayComponent_Version))
-		{
-			return (vr::IVRDisplayComponent*)this;
-		}
-
-		// override this to add a component to a driver
-		return NULL;
-	}
-
-	virtual void PowerOff()
-	{
-	}
-
-	// debug request from a client
-virtual void DebugRequest(const char* pchRequest, char* pchResponseBuffer, uint32_t unResponseBufferSize)
-{
-	if (unResponseBufferSize >= 1)
-		pchResponseBuffer[0] = 0;
-}
-
-virtual void GetWindowBounds(int32_t* pnX, int32_t* pnY, uint32_t* pnWidth, uint32_t* pnHeight)
-{
-	*pnX = m_nWindowX;
-	*pnY = m_nWindowY;
-	*pnWidth = m_nWindowWidth;
-	*pnHeight = m_nWindowHeight;
-}
-
-virtual bool IsDisplayOnDesktop()
-{
-	return true;
-}
-
-virtual bool IsDisplayRealDisplay()
-{
-	return false;
-}
-
-virtual void GetRecommendedRenderTargetSize(uint32_t* pnWidth, uint32_t* pnHeight)
-{
-	*pnWidth = m_nRenderWidth;
-	*pnHeight = m_nRenderHeight;
-}
-
-virtual void GetEyeOutputViewport(EVREye eEye, uint32_t* pnX, uint32_t* pnY, uint32_t* pnWidth, uint32_t* pnHeight)
-{
-	*pnY = 0;
-	*pnWidth = m_nWindowWidth / 2;
-	*pnHeight = m_nWindowHeight;
-
-	if (eEye == Eye_Left)
-	{
-		*pnX = 0;
-	}
-	else
-	{
-		*pnX = m_nWindowWidth / 2;
-	}
-}
-
-virtual void GetProjectionRaw(EVREye eEye, float* pfLeft, float* pfRight, float* pfTop, float* pfBottom)
-{
-	*pfLeft = -1.0;
-	*pfRight = 1.0;
-	*pfTop = -1.0;
-	*pfBottom = 1.0;
-}
-
-virtual DistortionCoordinates_t ComputeDistortion(EVREye eEye, float fU, float fV)
-{
-	DistortionCoordinates_t coordinates;
-	coordinates.rfBlue[0] = fU;
-	coordinates.rfBlue[1] = fV;
-	coordinates.rfGreen[0] = fU;
-	coordinates.rfGreen[1] = fV;
-	coordinates.rfRed[0] = fU;
-	coordinates.rfRed[1] = fV;
-	return coordinates;
-}
-
-virtual DriverPose_t GetPose()
-{
-
-	DriverPose_t pose = { 0 };
-	pose.poseIsValid = true;
-	pose.result = TrackingResult_Running_OK;
-	pose.deviceIsConnected = true;
-
-	pose.qWorldFromDriverRotation = HmdQuaternion_Init(1, 0, 0, 0);
-	pose.qDriverFromHeadRotation = HmdQuaternion_Init(1, 0, 0, 0);
-
-	//GetHMDData(&MyHMD);
-	//Set head tracking rotation
-	pose.qRotation = EulerAngleToQuaternion(DegToRad(0), DegToRad(-0), DegToRad(-90));
-
-	//Set head position tracking
-	pose.vecPosition[0] = MyHMD.X;
-	pose.vecPosition[1] = MyHMD.Z;
-	pose.vecPosition[2] = MyHMD.Y;
-
-	if (cnt == 100) {
-		DriverLog("%d - HMD: %f %f %f / %f %f %f\n", "HMD-device", pose.vecPosition[0], pose.vecPosition[1], pose.vecPosition[2], DegToRad(0), DegToRad(-0), DegToRad(-90));
-	}
-
-	cnt++;
-	if (cnt == 101) {
-		cnt = 0;
-	}
-
-	return pose;
-}
-
-
-void RunFrame()
-{
-	// In a real driver, this should happen from some pose tracking thread.
-	// The RunFrame interval is unspecified and can be very irregular if some other
-	// driver blocks it for some periodic task.
-	if (m_unObjectId != vr::k_unTrackedDeviceIndexInvalid)
-	{
-		vr::VRServerDriverHost()->TrackedDevicePoseUpdated(m_unObjectId, GetPose(), sizeof(DriverPose_t));
-	}
-}
-
-std::string GetSerialNumber() const { return "HMDSerial";; }
-
-private:
-	vr::TrackedDeviceIndex_t m_unObjectId;
-	vr::PropertyContainerHandle_t m_ulPropertyContainer;
-
-	//std::string m_sSerialNumber;
-	std::string m_sModelNumber;
-
-	int32_t m_nWindowX;
-	int32_t m_nWindowY;
-	int32_t m_nWindowWidth;
-	int32_t m_nWindowHeight;
-	int32_t m_nRenderWidth;
-	int32_t m_nRenderHeight;
-	float m_flSecondsFromVsyncToPhotons;
-	float m_flDisplayFrequency;
-	float m_flIPD;
-
-	int cnt;
-};
-*/
