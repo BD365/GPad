@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="include\driverlog.h" />
     <ClInclude Include="include\Gamepad.h" />
+    <ClInclude Include="include\linalg.h" />
     <ClInclude Include="include\openvr.h" />
     <ClInclude Include="include\openvr_capi.h" />
     <ClInclude Include="include\openvr_driver.h" />
@@ -33,6 +34,8 @@
   <ItemGroup>
     <None Include="include\openvr_api.cs" />
     <None Include="include\openvr_api.json" />
+    <None Include="include\UNLICENSE" />
+    <None Include="lib\LICENSE" />
     <None Include="resources\controller_profile.json" />
     <None Include="resources\driver.vrdrivermanifest" />
     <None Include="resources\game_controller.svg" />

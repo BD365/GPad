@@ -30,6 +30,9 @@
     <ClInclude Include="include\Gamepad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\linalg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\driverlog.cpp">
@@ -51,6 +54,8 @@
     <None Include="resources\game_controller.svg" />
     <None Include="resources\legacy_bindings_example.json" />
     <None Include="resources\driver.vrdrivermanifest" />
+    <None Include="include\UNLICENSE" />
+    <None Include="lib\LICENSE" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="lib\openvr_api.lib" />
