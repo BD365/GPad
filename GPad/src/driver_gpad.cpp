@@ -22,7 +22,7 @@ typedef struct _HMDController
 	float	moveY;
 	float	moveZup;
 	float	moveZdown;
-	float speed = 0.01f;
+	int speed = 1;
 } THMD, * PHMD;
 
 typedef struct _Controller
@@ -461,12 +461,12 @@ public:
 			pose.qRotation.z = (float)pose_rot.z;
 
 			// Update position based on rotation
-			linalg::vec<float, 3> forward_vec{ MyHMD.moveY, 0, 0 };
-			linalg::vec<float, 3> right_vec{ 0, 0, MyHMD.moveX };
+			linalg::vec<float, 3> forward_vec{ MyHMD.moveY , 0, 0};
+			linalg::vec<float, 3> right_vec{ 0, 0, MyHMD.moveX};
 			linalg::vec<float, 3> up_vec{ 0, MyHMD.moveZup + MyHMD.moveZdown, 0 }; //ok
 			linalg::vec<float, 3> final_dir = forward_vec + right_vec + up_vec; //ok
 			if (linalg::length(final_dir) > 0.01) {
-				final_dir = linalg::normalize(final_dir) * (float)delta_seconds;
+				final_dir = linalg::normalize(final_dir) * (float)delta_seconds * MyHMD.speed * 2;
 				final_dir = linalg::qrot(pose_rot, final_dir);
 				this->pos_x_ += final_dir.x;
 				this->pos_y_ += final_dir.y;
@@ -596,6 +596,53 @@ public:
 	* should not be used after that point. */
 	virtual EVRInitError Activate(vr::TrackedDeviceIndex_t unObjectId)
 	{
+
+		// Setup inputs and outputs
+			//"/input/a": "A Button",
+			//"/input/b" : "B Button",
+			//"/input/joystick" : "Joystick",
+			//"/input/skeleton" : "Skeleton",
+			//"/output/haptic" : "Haptic"
+		// NOT USED
+		/*
+		"/input/a/click"
+		"/input/a/touch"
+		"/input/b/click"
+		"/input/b/touch"
+		"/input/trigger/touch"
+
+		"/input/grip/touch"
+		"/input/grip/value"
+		"/input/grip/force"
+		"/input/system/touch"
+
+		"/input/joystick/click"
+		"/input/joystick/touch"
+		"/input/joystick/x"
+		"/input/joystick/y"
+		*/
+
+		// Setup inputs and outputs
+
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/click", &this->a_button_click_component_);
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/a/touch", &this->a_button_touch_component_);
+
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/click", &this->b_button_click_component_);
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/b/touch", &this->b_button_touch_component_);
+
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/trigger/touch", &this->trigger_touch_component_);
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/grip/touch", &this->grip_touch_component_);
+		//GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/value", &this->grip_value_component_, vr::EVRScalarType::VRScalarType_Absolute, vr::EVRScalarUnits::VRScalarUnits_NormalizedOneSided);
+		//GetDriver()->GetInput()->CreateScalarComponent(props, "/input/grip/force", &this->grip_force_component_, vr::EVRScalarType::VRScalarType_Absolute, vr::EVRScalarUnits::VRScalarUnits_NormalizedOneSided);
+
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/system/touch", &this->system_touch_component_);
+
+
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/click", &this->joystick_click_component_);
+		//GetDriver()->GetInput()->CreateBooleanComponent(props, "/input/joystick/touch", &this->joystick_touch_component_);
+		//GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/x", &this->joystick_x_component_, vr::EVRScalarType::VRScalarType_Absolute, vr::EVRScalarUnits::VRScalarUnits_NormalizedTwoSided);
+		//GetDriver()->GetInput()->CreateScalarComponent(props, "/input/joystick/y", &this->joystick_y_component_, vr::EVRScalarType::VRScalarType_Absolute, vr::EVRScalarUnits::VRScalarUnits_NormalizedTwoSided);
+
 		switch (ControllerIndex)
 		{
 		case 0:
@@ -648,19 +695,27 @@ public:
 
 		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_InputProfilePath_String, "{gpad}/input/gpad_profile.json");
 
-		bool bSetupIconUsingExternalResourceFile = false;
-		if (!bSetupIconUsingExternalResourceFile)
-		{
-			// Setup properties directly in code.
-			// Path values are of the form {drivername}\icons\some_icon_filename.png
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceOff_String, "{gpad}/icons/gpad_status_off.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceReady_String, "{gpad}/icons/gpad_status_ready.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceReadyAlert_String, "{gpad}/icons/gpad_status_ready_alert.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceNotReady_String, "{gpad}/icons/gpad_status_error.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceStandby_String, "{gpad}/icons/gpad_status_standby.png");
-			vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceAlertLow_String, "{gpad}/icons/gpad_status_ready_low.png");
-		}
+		// Setup properties directly in code.
+		// Path values are of the form {drivername}\icons\some_icon_filename.png
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceOff_String, "{gpad}/icons/gpad_status_off.png");
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceReady_String, "{gpad}/icons/gpad_status_ready.png");
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceReadyAlert_String, "{gpad}/icons/gpad_status_ready_alert.png");
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceNotReady_String, "{gpad}/icons/gpad_status_error.png");
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceStandby_String, "{gpad}/icons/gpad_status_standby.png");
+		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceAlertLow_String, "{gpad}/icons/gpad_status_ready_low.png");
+		//vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceSearching_String, "{gpad}/icons/gpad_status_standby.png");
+		//vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_NamedIconPathDeviceSearchingAlert_String, "{gpad}/icons/gpad_status_standby.png");
 
+		/*
+	"/input/trackpad": "Joystick",
+	"/input/trigger": "Trigger",
+	"/input/application_menu/click": "Start Button",
+	"/input/system/click": "Back Button",
+	"/input/grip/click": "A Button",
+	"/input/trigger/click": "B Button",
+	"/input/trackpad/click": "X Button",
+	"/input/trackpad/touch": "Y Button"
+		*/
 
 		switch (ControllerIndex)
 		{
@@ -706,7 +761,6 @@ public:
 		vr::VRDriverInput()->CreateHapticComponent(m_ulPropertyContainer, "/output/haptic", &m_compHaptic);
 
 		return VRInitError_None;
-
 	}
 	/** This is called when The VR system is switching from this Hmd being the active display
 	* to another Hmd being the active display. The driver should clean whatever memory
@@ -802,6 +856,7 @@ public:
 		if (ControllerIndex == 0) {
 
 			pose.vecDriverFromHeadTranslation[0] = MyCtrl[0].X;
+			pose.vecDriverFromHeadTranslation[1] = MyCtrl[0].Y;
 			pose.vecDriverFromHeadTranslation[2] = MyCtrl[0].Z;
 
 			r.w = cos(DegToRad(MyCtrl[0].Yaw) * 0.5) * cos(DegToRad(MyCtrl[0].Roll) * 0.5) * cos(DegToRad(MyCtrl[0].Pitch) * 0.5) + sin(DegToRad(MyCtrl[0].Yaw) * 0.5) * sin(DegToRad(MyCtrl[0].Roll) * 0.5) * sin(DegToRad(MyCtrl[0].Pitch) * 0.5);
@@ -831,6 +886,7 @@ public:
 		else {
 
 			pose.vecDriverFromHeadTranslation[0] = MyCtrl[1].X;
+			pose.vecDriverFromHeadTranslation[1] = MyCtrl[1].Y;
 			pose.vecDriverFromHeadTranslation[2] = MyCtrl[1].Z;
 
 
@@ -1291,14 +1347,14 @@ public:
 					center[1] = true;
 					break;
 				case 2:
-					DriverLog("%d %d - xButtons.R_Thumbstick: speed (before)=%f\n", ControllerIndex, index, MyHMD.speed);
-					if (MyHMD.speed == 0.01f) {
-						MyHMD.speed = 0.05f;
+					DriverLog("%d %d - xButtons.R_Thumbstick: speed (before)=%d\n", ControllerIndex, index, MyHMD.speed);
+					if (MyHMD.speed == 1) {
+						MyHMD.speed = 3;
 					}
 					else {
-						MyHMD.speed = 0.01f;
+						MyHMD.speed = 1;
 					}
-					DriverLog("%d %d - xButtons.R_Thumbstick: speed (after)=%f\n", ControllerIndex, index, MyHMD.speed);
+					DriverLog("%d %d - xButtons.R_Thumbstick: speed (after)=%d\n", ControllerIndex, index, MyHMD.speed);
 					break;
 				default:
 					center[gpActiveModus] = true;
@@ -1493,8 +1549,12 @@ public:
 		{
 			if (vrEvent.data.hapticVibration.componentHandle == m_compHaptic)
 			{
+				//gamepad.SetRumble(1.0f, 1.0f);
 				// This is where you would send a signal to your hardware to trigger actual haptic feedback
-				DriverLog("BUZZ!\n");
+				//DriverLog("BUZZ!\n");
+			}
+			else {
+				//gamepad.SetRumble(0.0f, 0.0f);
 			}
 		}
 		break;
@@ -1525,6 +1585,25 @@ private:
 
 	vr::VRInputComponentHandle_t m_start;
 	vr::VRInputComponentHandle_t m_back;
+
+	//EXTRA's
+	vr::VRInputComponentHandle_t a_button_click_component_ = 0;
+	//vr::VRInputComponentHandle_t a_button_touch_component_ = 0;
+	vr::VRInputComponentHandle_t b_button_click_component_ = 0;
+	//vr::VRInputComponentHandle_t b_button_touch_component_ = 0;
+
+	//vr::VRInputComponentHandle_t trigger_touch_component_ = 0;
+
+	//vr::VRInputComponentHandle_t grip_touch_component_ = 0;
+	//vr::VRInputComponentHandle_t grip_value_component_ = 0;
+	//vr::VRInputComponentHandle_t grip_force_component_ = 0;
+
+	//vr::VRInputComponentHandle_t system_touch_component_ = 0;
+
+	vr::VRInputComponentHandle_t joystick_click_component_ = 0;
+	//vr::VRInputComponentHandle_t joystick_touch_component_ = 0;
+	vr::VRInputComponentHandle_t joystick_x_component_ = 0;
+	vr::VRInputComponentHandle_t joystick_y_component_ = 0;
 
 	bool center[2] = { true, true };
 
